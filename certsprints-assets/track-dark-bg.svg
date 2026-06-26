@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/certsprint.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Pass your certification in half the time. Stop guessing if you're ready—know with your AI Readiness Score. Don't study harder. Sprint smarter with CertSprint AI."
+    />
+    <meta
+      name="keywords"
+      content="certification exam prep, PMP, AWS, CCMP, AI readiness score, exam readiness, CertSprints"
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#007BFF" />
+    <title>CertSprints — Sprint Smarter | AI Certification Readiness</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CertSprints" />
+    <meta property="og:locale" content="en_US" />
+    <meta
+      property="og:title"
+      content="CertSprints — Don't Study Harder. Sprint Smarter."
+    />
+    <meta
+      property="og:description"
+      content="Pass your certification in half the time. Know when you're exam-ready with CertSprint AI and your AI Readiness Score."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CertSprints — Sprint Smarter certification readiness" />
+    
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="CertSprints — Don't Study Harder. Sprint Smarter."
+    />
+    <meta
+      name="twitter:description"
+      content="Pass your certification in half the time. Know when you're exam-ready with CertSprint AI."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-Cjic81UU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CMGqV5w2.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
