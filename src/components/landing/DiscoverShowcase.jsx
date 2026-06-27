@@ -441,7 +441,7 @@ export default function DiscoverShowcase() {
 
         {/* Desktop: scroll-driven tabs with layout flip + zoom-pan preview */}
         <div ref={outerRef} className="hidden md:block relative" style={{ height: `${TABS.length * 100}vh` }}>
-          <div className="sticky top-0 h-screen flex items-center">
+          <div className="sticky top-24 flex h-[calc(100vh-6rem)] items-start pt-8">
             <div ref={wrapperRef} className="relative w-full" style={{ height: 600 }}>
               <div
                 className="absolute top-0 transition-transform duration-700 ease-in-out"
