@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import heroBgStripes from '../../assets/landing/hero-bg-stripes.png'
 import heroMockup from '../../assets/landing/hero-mockup.png'
 import doodleChecklist from '../../assets/landing/doodle-checklist.png'
@@ -15,11 +15,19 @@ const itemVariants = {
 }
 
 const imageVariants = {
-  hidden: { opacity: 0, y: 70 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut', delay: 0.5 } },
+  hidden: { opacity: 0, y: 72, scale: 0.96, filter: 'blur(10px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: 'blur(0px)',
+    transition: { duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.45 },
+  },
 }
 
 export default function Hero({ onStart, onDiscoverMore }) {
+  const shouldReduceMotion = useReducedMotion()
+
   return (
     <section className="relative overflow-hidden bg-white">
       <img
@@ -101,14 +109,38 @@ export default function Hero({ onStart, onDiscoverMore }) {
       </motion.div>
 
       <div className="relative max-w-5xl mx-auto px-6 pb-20">
-        <motion.img
-          src={heroMockup}
-          alt="CertSprints diagnostic report preview"
-          className="w-full rounded-3xl shadow-xl"
-          variants={imageVariants}
-          initial="hidden"
-          animate="visible"
-        />
+        <motion.div
+          className="hero-mockup-reveal relative overflow-hidden rounded-3xl shadow-xl"
+          variants={shouldReduceMotion ? undefined : imageVariants}
+          initial={shouldReduceMotion ? false : 'hidden'}
+          animate={shouldReduceMotion ? undefined : 'visible'}
+        >
+          <motion.img
+            src={heroMockup}
+            alt="CertSprints diagnostic report preview"
+            className="block w-full rounded-3xl"
+            animate={shouldReduceMotion ? undefined : { y: [0, -8, 0] }}
+            transition={shouldReduceMotion ? undefined : { duration: 7, ease: 'easeInOut', repeat: Infinity, delay: 1.4 }}
+          />
+          {!shouldReduceMotion && (
+            <>
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent blur-sm"
+                initial={{ x: '-120%' }}
+                animate={{ x: '520%' }}
+                transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 1 }}
+              />
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-[18%] right-[18%] top-[31%] h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent"
+                initial={{ opacity: 0, scaleX: 0.35 }}
+                animate={{ opacity: [0, 1, 0], scaleX: [0.35, 1, 0.9], y: [0, 18, 30] }}
+                transition={{ duration: 1.8, ease: 'easeOut', delay: 0.85 }}
+              />
+            </>
+          )}
+        </motion.div>
       </div>
     </section>
   )
