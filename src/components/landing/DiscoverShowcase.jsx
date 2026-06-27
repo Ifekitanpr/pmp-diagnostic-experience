@@ -1,13 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 const courseIllustration = `${import.meta.env.BASE_URL}certsprints-assets/illustrations/next-step-course.png`
 
-function TargetIcon({ className }) {
+function TargetIcon({ active = false, className }) {
+  const gradientId = useId()
+  const stroke = active ? `url(#${gradientId})` : 'currentColor'
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+      {active && (
+        <defs>
+          <linearGradient id={gradientId} x1="3" y1="4" x2="21" y2="20" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FF6A3D" />
+            <stop offset="0.45" stopColor="#8B5CF6" />
+            <stop offset="1" stopColor="#0084FF" />
+          </linearGradient>
+        </defs>
+      )}
+      <circle cx="12" cy="12" r="9" stroke={stroke} strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="5" stroke={stroke} strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="1.2" fill={stroke} />
     </svg>
   )
 }
@@ -217,7 +228,7 @@ function TabsList({ items, activeIndex, side, activeCardRef }) {
             className={`px-9 py-6 transition-colors duration-500 ${isActive ? `bg-primary-50 ${cornerClass}` : 'bg-white rounded-[20px]'}`}
           >
             <div className="flex items-center justify-between mb-4">
-              <Icon className={`size-6 ${isActive ? 'text-primary-500' : 'text-slate-400'}`} />
+              <Icon active={isActive} className={`size-6 ${isActive ? 'text-primary-500' : 'text-slate-400'}`} />
               {isActive && <span className="font-bold text-primary-100 text-2xl">{String(index + 1).padStart(2, '0')}</span>}
             </div>
             <p className={`font-semibold text-xl ${isActive ? 'text-ink' : 'text-slate-700'}`}>{tab.title}</p>
@@ -229,13 +240,16 @@ function TabsList({ items, activeIndex, side, activeCardRef }) {
 }
 
 // Visually bridges the active tab card's blue fill into the preview panel's blue fill.
-// The connector is a flat strip the height of the active tab; wherever an end isn't
-// anchored to the very top/bottom of the list, it gets a smooth rounded cap (the
-// "armpit" curve) instead of a hard edge, so the color flows into the white space.
-const CURVE_RADIUS = 16
+// The bridge stays rectangular; inverse corner caps sit just outside it to create
+// the white/gray "armpit" curve seen in the Figma composition.
+const CONNECTOR_CURVE = 28
 
 function TabPreviewConnector({ top, height, side, isFirst, isLast }) {
   if (height === 0) return null
+  const edgeClass = side === 'left' ? 'left-0' : 'right-0'
+  const topCapClass = side === 'left' ? 'rounded-br-[28px]' : 'rounded-bl-[28px]'
+  const bottomCapClass = side === 'left' ? 'rounded-tr-[28px]' : 'rounded-tl-[28px]'
+
   return (
     <div
       className="absolute bg-primary-50 transition-[top,height] duration-500 ease-in-out"
@@ -244,12 +258,23 @@ function TabPreviewConnector({ top, height, side, isFirst, isLast }) {
         height,
         [side === 'left' ? 'left' : 'right']: TABS_WIDTH,
         width: GAP,
-        borderTopLeftRadius: isFirst ? 0 : CURVE_RADIUS,
-        borderTopRightRadius: isFirst ? 0 : CURVE_RADIUS,
-        borderBottomLeftRadius: isLast ? 0 : CURVE_RADIUS,
-        borderBottomRightRadius: isLast ? 0 : CURVE_RADIUS,
       }}
-    />
+    >
+      {!isFirst && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute ${edgeClass} top-0 -translate-y-full bg-slate-50 ${topCapClass}`}
+          style={{ width: CONNECTOR_CURVE, height: CONNECTOR_CURVE }}
+        />
+      )}
+      {!isLast && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute ${edgeClass} bottom-0 translate-y-full bg-slate-50 ${bottomCapClass}`}
+          style={{ width: CONNECTOR_CURVE, height: CONNECTOR_CURVE }}
+        />
+      )}
+    </div>
   )
 }
 
@@ -425,7 +450,7 @@ export default function DiscoverShowcase() {
                     isActive ? 'bg-primary-500 text-white' : 'border border-slate-200 bg-white text-slate-600'
                   }`}
                 >
-                  <tab.Icon className={`size-4 shrink-0 ${isActive ? 'text-white' : 'text-primary-500'}`} />
+                  <tab.Icon active={isActive} className={`size-4 shrink-0 ${isActive ? 'text-white' : 'text-primary-500'}`} />
                   {tab.short}
                 </button>
               )
