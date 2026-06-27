@@ -15,7 +15,7 @@ const itemVariants = {
 }
 
 const imageVariants = {
-  hidden: { opacity: 0, y: 72, scale: 0.96, filter: 'blur(10px)' },
+  hidden: { opacity: 0, y: 64, scale: 0.97, filter: 'blur(10px)' },
   visible: {
     opacity: 1,
     y: 0,
@@ -23,6 +23,119 @@ const imageVariants = {
     filter: 'blur(0px)',
     transition: { duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.45 },
   },
+}
+
+function MockupLayer({ clipPath, className = '', children, ...motionProps }) {
+  return (
+    <motion.div
+      className={`absolute inset-0 overflow-hidden ${className}`}
+      style={{ clipPath }}
+      {...motionProps}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function MockupImage({ className = '' }) {
+  return (
+    <img
+      src={heroMockup}
+      alt=""
+      className={`absolute inset-0 h-full w-full select-none object-cover ${className}`}
+      draggable="false"
+    />
+  )
+}
+
+function HeroMockup({ shouldReduceMotion }) {
+  if (shouldReduceMotion) {
+    return (
+      <img
+        src={heroMockup}
+        alt="CertSprints diagnostic report preview"
+        className="block w-full rounded-3xl shadow-xl"
+      />
+    )
+  }
+
+  return (
+    <motion.div
+      role="img"
+      aria-label="CertSprints diagnostic report preview"
+      className="relative aspect-[31/15] overflow-hidden rounded-[28px] border-[10px] border-white shadow-xl sm:rounded-[40px] sm:border-[16px]"
+      variants={imageVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(90deg, rgba(0, 123, 255, 0.15) 0%, rgba(255, 107, 53, 0.15) 104%), linear-gradient(90deg, #fff0eb 0%, #fff0eb 100%)',
+        }}
+      />
+
+      <MockupLayer
+        clipPath="inset(15.8% 17.6% 0 17.6% round 12px)"
+        initial={{ opacity: 0, y: 42, scale: 0.985 }}
+        animate={{ opacity: 1, y: [0, -5, 0], scale: 1 }}
+        transition={{
+          opacity: { duration: 0.65, ease: 'easeOut', delay: 0.55 },
+          y: { duration: 7, ease: 'easeInOut', repeat: Infinity, delay: 1.6 },
+          scale: { duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.55 },
+        }}
+      >
+        <MockupImage />
+      </MockupLayer>
+
+      <MockupLayer
+        clipPath="inset(63.3% 65.5% 0 0 round 7px)"
+        initial={{ opacity: 0, x: -56, y: 34, scale: 0.96, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, x: 0, y: [0, -7, 0], scale: 1, filter: 'blur(0px)' }}
+        transition={{
+          opacity: { duration: 0.55, ease: 'easeOut', delay: 0.95 },
+          x: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.95 },
+          y: { duration: 6.4, ease: 'easeInOut', repeat: Infinity, delay: 1.9 },
+          scale: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.95 },
+          filter: { duration: 0.6, ease: 'easeOut', delay: 0.95 },
+        }}
+      >
+        <MockupImage />
+      </MockupLayer>
+
+      <MockupLayer
+        clipPath="inset(34.5% 0 19.8% 72.3% round 8px)"
+        initial={{ opacity: 0, x: 48, y: 16, scale: 0.96, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, x: 0, y: [0, -10, 0], scale: 1, filter: 'blur(0px)' }}
+        transition={{
+          opacity: { duration: 0.55, ease: 'easeOut', delay: 1.15 },
+          x: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 1.15 },
+          y: { duration: 6.9, ease: 'easeInOut', repeat: Infinity, delay: 2.05 },
+          scale: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 1.15 },
+          filter: { duration: 0.6, ease: 'easeOut', delay: 1.15 },
+        }}
+      >
+        <MockupImage />
+      </MockupLayer>
+
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent blur-sm"
+        initial={{ x: '-120%' }}
+        animate={{ x: '520%' }}
+        transition={{ duration: 1.45, ease: [0.16, 1, 0.3, 1], delay: 1.35 }}
+      />
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[22%] right-[22%] top-[26%] h-px bg-gradient-to-r from-transparent via-primary-400/55 to-transparent"
+        initial={{ opacity: 0, scaleX: 0.35 }}
+        animate={{ opacity: [0, 1, 0], scaleX: [0.35, 1, 0.9], y: [0, 18, 30] }}
+        transition={{ duration: 1.65, ease: 'easeOut', delay: 0.95 }}
+      />
+    </motion.div>
+  )
 }
 
 export default function Hero({ onStart, onDiscoverMore }) {
@@ -109,38 +222,7 @@ export default function Hero({ onStart, onDiscoverMore }) {
       </motion.div>
 
       <div className="relative max-w-5xl mx-auto px-6 pb-20">
-        <motion.div
-          className="hero-mockup-reveal relative overflow-hidden rounded-3xl shadow-xl"
-          variants={shouldReduceMotion ? undefined : imageVariants}
-          initial={shouldReduceMotion ? false : 'hidden'}
-          animate={shouldReduceMotion ? undefined : 'visible'}
-        >
-          <motion.img
-            src={heroMockup}
-            alt="CertSprints diagnostic report preview"
-            className="block w-full rounded-3xl"
-            animate={shouldReduceMotion ? undefined : { y: [0, -8, 0] }}
-            transition={shouldReduceMotion ? undefined : { duration: 7, ease: 'easeInOut', repeat: Infinity, delay: 1.4 }}
-          />
-          {!shouldReduceMotion && (
-            <>
-              <motion.div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent blur-sm"
-                initial={{ x: '-120%' }}
-                animate={{ x: '520%' }}
-                transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 1 }}
-              />
-              <motion.div
-                aria-hidden="true"
-                className="pointer-events-none absolute left-[18%] right-[18%] top-[31%] h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent"
-                initial={{ opacity: 0, scaleX: 0.35 }}
-                animate={{ opacity: [0, 1, 0], scaleX: [0.35, 1, 0.9], y: [0, 18, 30] }}
-                transition={{ duration: 1.8, ease: 'easeOut', delay: 0.85 }}
-              />
-            </>
-          )}
-        </motion.div>
+        <HeroMockup shouldReduceMotion={shouldReduceMotion} />
       </div>
     </section>
   )
