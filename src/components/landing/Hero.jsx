@@ -78,7 +78,7 @@ function HeroMockup({ shouldReduceMotion }) {
       />
 
       <MockupLayer
-        clipPath="inset(15.8% 17.6% 0 17.6% round 12px)"
+        clipPath="polygon(17.6% 15.8%, 82.4% 15.8%, 82.4% 34.5%, 72.3% 34.5%, 72.3% 63.3%, 34.5% 63.3%, 34.5% 100%, 17.6% 100%)"
         initial={{ opacity: 0, y: 42, scale: 0.985 }}
         animate={{ opacity: 1, y: [0, -5, 0], scale: 1 }}
         transition={{
