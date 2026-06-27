@@ -511,7 +511,7 @@ function getPackageRecommendation(userType, scores, band) {
 
   if (beginner) {
     return {
-      title: 'Absolute Beginner Course Sprint Bouquet',
+      title: 'Foundational Course Sprint',
       detail: 'Start with foundation lessons, short recall drills, and guided PMP language calibration before adding mock pressure.',
       cta: 'Start my sprint plan',
       items: ['Module 1 foundation sprint', 'Terminology recall drills', 'People/Process/Business baseline', 'Weekly study plan'],
