@@ -1,6 +1,9 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import heroBgStripes from '../../assets/landing/hero-bg-stripes.png'
 import heroMockup from '../../assets/landing/hero-mockup.png'
+import heroDashboardLayer from '../../assets/landing/hero-dashboard-layer.png'
+import heroGapCardLayer from '../../assets/landing/hero-gap-card-layer.png'
+import heroReadinessCardLayer from '../../assets/landing/hero-readiness-card-layer.png'
 import doodleChecklist from '../../assets/landing/doodle-checklist.png'
 import doodleList from '../../assets/landing/doodle-list.png'
 
@@ -23,29 +26,6 @@ const imageVariants = {
     filter: 'blur(0px)',
     transition: { duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.45 },
   },
-}
-
-function MockupLayer({ clipPath, className = '', children, ...motionProps }) {
-  return (
-    <motion.div
-      className={`absolute inset-0 overflow-hidden ${className}`}
-      style={{ clipPath }}
-      {...motionProps}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-function MockupImage({ className = '' }) {
-  return (
-    <img
-      src={heroMockup}
-      alt=""
-      className={`absolute inset-0 h-full w-full select-none object-cover ${className}`}
-      draggable="false"
-    />
-  )
 }
 
 function HeroMockup({ shouldReduceMotion }) {
@@ -77,8 +57,11 @@ function HeroMockup({ shouldReduceMotion }) {
         }}
       />
 
-      <MockupLayer
-        clipPath="polygon(17.6% 15.8%, 82.4% 15.8%, 82.4% 34.5%, 72.3% 34.5%, 72.3% 63.3%, 34.5% 63.3%, 34.5% 100%, 17.6% 100%)"
+      <motion.img
+        src={heroDashboardLayer}
+        alt=""
+        className="absolute left-[16.5%] top-[13.6%] w-[67%] select-none rounded-xl"
+        draggable="false"
         initial={{ opacity: 0, y: 42, scale: 0.985 }}
         animate={{ opacity: 1, y: [0, -5, 0], scale: 1 }}
         transition={{
@@ -86,12 +69,13 @@ function HeroMockup({ shouldReduceMotion }) {
           y: { duration: 7, ease: 'easeInOut', repeat: Infinity, delay: 1.6 },
           scale: { duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.55 },
         }}
-      >
-        <MockupImage />
-      </MockupLayer>
+      />
 
-      <MockupLayer
-        clipPath="inset(63.3% 65.5% 0 0 round 7px)"
+      <motion.img
+        src={heroGapCardLayer}
+        alt=""
+        className="absolute left-[2.5%] top-[67.8%] w-[34.4%] select-none"
+        draggable="false"
         initial={{ opacity: 0, x: -56, y: 34, scale: 0.96, filter: 'blur(8px)' }}
         animate={{ opacity: 1, x: 0, y: [0, -7, 0], scale: 1, filter: 'blur(0px)' }}
         transition={{
@@ -101,12 +85,13 @@ function HeroMockup({ shouldReduceMotion }) {
           scale: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.95 },
           filter: { duration: 0.6, ease: 'easeOut', delay: 0.95 },
         }}
-      >
-        <MockupImage />
-      </MockupLayer>
+      />
 
-      <MockupLayer
-        clipPath="inset(34.5% 0 19.8% 72.3% round 8px)"
+      <motion.img
+        src={heroReadinessCardLayer}
+        alt=""
+        className="absolute left-[74.7%] top-[37%] w-[25.9%] select-none"
+        draggable="false"
         initial={{ opacity: 0, x: 48, y: 16, scale: 0.96, filter: 'blur(8px)' }}
         animate={{ opacity: 1, x: 0, y: [0, -10, 0], scale: 1, filter: 'blur(0px)' }}
         transition={{
@@ -116,9 +101,7 @@ function HeroMockup({ shouldReduceMotion }) {
           scale: { duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 1.15 },
           filter: { duration: 0.6, ease: 'easeOut', delay: 1.15 },
         }}
-      >
-        <MockupImage />
-      </MockupLayer>
+      />
 
       <motion.div
         aria-hidden="true"
