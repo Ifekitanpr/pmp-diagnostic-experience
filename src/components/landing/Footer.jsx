@@ -5,12 +5,13 @@ const LINK_COLUMNS = [
   { heading: 'Resources', links: ['Help Center', 'Privacy Policy', 'Terms of Service', 'Cookie policy', 'Support'] },
 ]
 
+const ASSET_BASE = `${import.meta.env.BASE_URL}certsprints-assets`
+
 const SOCIALS = [
-  { label: 'Facebook', icon: '📘' },
-  { label: 'X', icon: '✕' },
-  { label: 'LinkedIn', icon: 'in' },
-  { label: 'Instagram', icon: '📷' },
-  { label: 'YouTube', icon: '▶' },
+  { label: 'Facebook', icon: `${ASSET_BASE}/icons/social-facebook-footer.svg` },
+  { label: 'X', icon: `${ASSET_BASE}/icons/social-x-footer.svg` },
+  { label: 'LinkedIn', icon: `${ASSET_BASE}/icons/social-linkedin-footer.svg` },
+  { label: 'Instagram', icon: `${ASSET_BASE}/icons/social-instagram-footer.svg` },
 ]
 
 export default function Footer() {
@@ -19,24 +20,20 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto flex flex-col gap-16">
         <div className="flex flex-col lg:flex-row gap-12 lg:justify-between">
           <div className="flex flex-col gap-6 w-full lg:w-[339px] shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">CS</span>
-              </div>
-              <span className="font-heading font-bold italic text-white text-lg">CertSprints</span>
-            </div>
+            <img src={`${ASSET_BASE}/footer-logo-wordmark.svg`} alt="CertSprints" className="h-[29px] w-[189px] object-contain" />
             <p className="text-slate-50 text-base">
               CertSprints powers accelerated certification with zero fluff &ndash; designed for ambitious professionals.
             </p>
-            <div className="bg-[#141414] rounded-lg px-4 py-1 flex items-center gap-2.5 w-fit">
+            <div className="bg-[#141414] rounded-lg px-4 py-1.5 sm:px-6 flex items-center gap-2.5 w-fit max-w-full">
               {SOCIALS.map((s) => (
-                <span
+                <a
                   key={s.label}
+                  href="#"
                   aria-label={s.label}
-                  className="size-[34px] rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white text-sm cursor-pointer transition-colors"
+                  className="size-11 rounded-[10px] hover:bg-white/10 flex items-center justify-center transition-colors sm:size-[50px]"
                 >
-                  {s.icon}
-                </span>
+                  <img src={s.icon} alt="" className="max-h-6 max-w-6" />
+                </a>
               ))}
             </div>
           </div>
@@ -67,7 +64,7 @@ export default function Footer() {
             aria-label="Back to top"
             className="size-12 rounded-full bg-[#141414] hover:bg-white/10 flex items-center justify-center text-white shrink-0 transition-colors self-end lg:self-start"
           >
-            &uarr;
+            <img src={`${ASSET_BASE}/icons/footer-back-to-top.svg`} alt="" className="size-6" />
           </button>
         </div>
 

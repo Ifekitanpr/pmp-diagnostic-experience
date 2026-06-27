@@ -4,10 +4,16 @@ const ASSET_BASE = `${import.meta.env.BASE_URL}certsprints-assets`
 
 const navItems = ['Catalog', 'Enterprise', 'Insights']
 
-const footerCerts = ['PMP', 'CBAP', 'CCMP', 'RMP', 'View All']
+const footerCerts = ['PMP', 'CBAP', 'CCMP', 'RMP', 'CFA', 'View All']
 const footerPlatform = ['How It Works', 'Pricing', 'Success Stories', 'Free Trial']
 const footerCompany = ['About', 'Careers', 'Contact', 'Press', 'Partners', 'Team']
-const footerResources = ['Help Center', 'Privacy Policy', 'Terms of Service', 'Legal', 'Support']
+const footerResources = ['Help Center', 'Privacy Policy', 'Terms of Service', 'Cookie policy', 'Support']
+const footerSocials = [
+  { label: 'Facebook', icon: `${ASSET_BASE}/icons/social-facebook-footer.svg` },
+  { label: 'X', icon: `${ASSET_BASE}/icons/social-x-footer.svg` },
+  { label: 'LinkedIn', icon: `${ASSET_BASE}/icons/social-linkedin-footer.svg` },
+  { label: 'Instagram', icon: `${ASSET_BASE}/icons/social-instagram-footer.svg` },
+]
 
 export function PromoBar() {
   return (
@@ -157,20 +163,20 @@ export function SiteFooter({ onStart, onLogoClick }) {
                 }
               }}
             >
-              <img src={`${ASSET_BASE}/logo-2.svg`} alt="CertSprints" className="h-8 cursor-pointer object-contain" />
+              <img src={`${ASSET_BASE}/footer-logo-wordmark.svg`} alt="CertSprints" className="h-[29px] w-[189px] cursor-pointer object-contain" />
             </a>
             <p className="max-w-sm text-base leading-7 text-slate-50">
               CertSprints powers accelerated certification with zero fluff - designed for ambitious professionals.
             </p>
-            <div className="flex w-fit flex-wrap items-center gap-2.5 rounded-lg bg-[#141414] px-4 py-1">
-              {['Fb', 'X', 'In', 'Ig'].map((item) => (
+            <div className="flex w-fit max-w-full flex-wrap items-center gap-2.5 rounded-lg bg-[#141414] px-4 py-1.5 sm:px-6">
+              {footerSocials.map((item) => (
                 <a
-                  key={item}
+                  key={item.label}
                   href="#"
-                  className="flex size-[34px] items-center justify-center rounded-full bg-white/5 text-sm font-extrabold text-slate-300 transition hover:bg-white/10 hover:text-white"
-                  aria-label={item}
+                  className="flex size-11 items-center justify-center rounded-[10px] transition hover:bg-white/10 sm:size-[50px]"
+                  aria-label={item.label}
                 >
-                  {item}
+                  <img src={item.icon} alt="" className="max-h-6 max-w-6" />
                 </a>
               ))}
             </div>
@@ -190,6 +196,14 @@ export function SiteFooter({ onStart, onLogoClick }) {
             <FooterColumn title="Company" items={footerCompany} />
             <FooterColumn title="Resources" items={footerResources} />
           </div>
+
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Back to top"
+            className="flex size-12 shrink-0 items-center justify-center self-end rounded-full bg-[#141414] text-white transition hover:bg-white/10 lg:self-start"
+          >
+            <img src={`${ASSET_BASE}/icons/footer-back-to-top.svg`} alt="" className="size-6" />
+          </button>
         </div>
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-center text-sm text-slate-200 sm:flex-row sm:text-left">
