@@ -38,7 +38,11 @@ export const RECALL_CHECKS = [
     question: 'Complete: In servant leadership, the PM\'s primary focus is to ______ the team and remove ______.',
     prompt: 'Fill in the two blanks...',
     modelAnswer: 'SERVE / SUPPORT the team and remove OBSTACLES / IMPEDIMENTS',
-    keywords: ['serve','support','obstacles','impediments','blockers'],
+    // Each blank has multiple acceptable synonyms — grouping them means matching
+    // ANY one word per group counts as that blank being correct, instead of
+    // treating "obstacles", "impediments", and "blockers" as three separate
+    // required words (which used to under-score a fully correct answer).
+    keywords: [['serve', 'support'], ['obstacles', 'impediments', 'blockers']],
   },
 
   // ── PROCESS (5) ─────────────────────────────────────────────────────────────
@@ -75,7 +79,10 @@ export const RECALL_CHECKS = [
     question: 'What is the formula for Schedule Variance (SV) in EVM?',
     prompt: 'Write the formula...',
     modelAnswer: 'SV = EV − PV  (Earned Value minus Planned Value). Positive = ahead of schedule; Negative = behind.',
-    keywords: ['ev','pv','sv','earned','planned'],
+    // "ev"/"earned" and "pv"/"planned" are the same two terms either as the
+    // acronym or spelled out — grouped so a correct "SV = EV - PV" answer
+    // isn't penalised for not also spelling out "earned" and "planned".
+    keywords: [['ev', 'earned'], ['pv', 'planned'], 'sv'],
   },
 
   // ── BUSINESS ENVIRONMENT (5) ─────────────────────────────────────────────────
@@ -92,6 +99,10 @@ export const RECALL_CHECKS = [
     prompt: 'List three factors...',
     modelAnswer: 'Leadership style, organisational values/history, communication norms, reward/recognition systems, power structures, policies and procedures (any three valid).',
     keywords: ['leadership','values','culture','communication','norms','history','policies'],
+    // The question only asks for three factors out of this longer valid list —
+    // without minRequired, naming exactly three (as asked) would score at most
+    // 3/7 ≈ 43%, marking a fully correct answer as incomplete.
+    minRequired: 3,
   },
   {
     id: 'r13', domain: 'business', type: 'active', recallWeight: 0.40,

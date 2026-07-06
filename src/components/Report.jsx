@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeScores, getBand, getRiskLevel } from '../utils/scoring'
+import { computeScores, getBand, getRiskLevel, GROUP_A_CRITICAL_THRESHOLD } from '../utils/scoring'
 import { PromoBar, SiteFooter, SiteHeader } from './SiteChrome'
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}certsprints-assets`
@@ -9,11 +9,22 @@ const DOMAIN_SHORT_LABELS = { people: 'People', process: 'Process', business: 'B
 const DOMAIN_FILTER_LABELS = { people: 'People', process: 'Process', business: 'Business Env' }
 
 const COMPONENT_ITEMS = [
-  { key: 'performance', label: 'Performance', icon: 'icon-arrow-up-right.png', color: '#007bff' },
-  { key: 'pacing', label: 'Pacing', icon: 'icon-clock.png', color: '#ff6b35' },
-  { key: 'confidence', label: 'Confidence', icon: 'icon-security.png', color: '#16a34a' },
-  { key: 'recall', label: 'Recall', icon: 'icon-target-03.png', color: '#8438ee' },
+  { key: 'performance', label: 'Performance', weight: 65, icon: 'icon-arrow-up-right.png', color: '#007bff' },
+  { key: 'pacing', label: 'Pacing', weight: 10, icon: 'icon-clock.png', color: '#ff6b35' },
+  { key: 'confidence', label: 'Confidence', weight: 10, icon: 'icon-security.png', color: '#16a34a' },
+  { key: 'recall', label: 'Recall', weight: 15, icon: 'icon-target-03.png', color: '#8438ee' },
 ]
+
+// Maps scoring.js's band.color to a concrete hex for the readiness dial —
+// keeps color severity driven by the same single source of truth as the
+// band copy, rather than a second set of score thresholds.
+const BAND_DIAL_COLORS = {
+  red: '#ef4444',
+  orange: '#ff6b35',
+  yellow: '#eab308',
+  blue: '#54a7ff',
+  green: '#22c55e',
+}
 
 export default function Report({ answers, recallAnswers, userType, onRetake, onLogoClick }) {
   const [view, setView] = useState('summary')
@@ -25,6 +36,11 @@ export default function Report({ answers, recallAnswers, userType, onRetake, onL
   const risks = getRiskLevel(scores)
   const packageRec = getPackageRecommendation(userType, scores, band)
   const reviewItems = [...answers, ...recallAnswers].sort((a, b) => (a.order || 0) - (b.order || 0))
+
+  // Group A alignment sync (1 July 2026): below the critical threshold, skip
+  // the risk-metric detail entirely and lead with a single Module 1 CTA —
+  // component/risk breakdowns are noise for a learner this early on.
+  const showSimplified = userType.category === 'A' && scores.composite < GROUP_A_CRITICAL_THRESHOLD
 
   const missedCount = answers.filter((a) => !a.isCorrect).length
   const correctCount = answers.filter((a) => a.isCorrect).length
@@ -48,6 +64,7 @@ export default function Report({ answers, recallAnswers, userType, onRetake, onL
             band={band}
             risks={risks}
             packageRec={packageRec}
+            showSimplified={showSimplified}
             onReviewAnswers={() => setView('navigator')}
             onViewDomain={(domainKey) => {
               setFilterAccuracy('all')
@@ -77,32 +94,81 @@ export default function Report({ answers, recallAnswers, userType, onRetake, onL
 }
 
 function ScoreHero({ scores, band }) {
+  const dialColor = BAND_DIAL_COLORS[band.color] || BAND_DIAL_COLORS.blue
+
   return (
     <div
       className="overflow-hidden rounded-[10px] px-6 py-10 sm:px-16 lg:px-24"
       style={{ backgroundImage: 'linear-gradient(96.57deg, #091427 30.478%, #035dbf 99.252%)' }}
     >
-      <div className="mx-auto max-w-2xl text-center">
+      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
         <p className="text-base font-extrabold uppercase tracking-[1.6px] text-primary-200">Provisional readiness score</p>
-        <div className="mt-4 flex items-end justify-center gap-1">
-          <span className="font-display text-5xl font-bold tracking-[-1.08px] text-white sm:text-6xl">{Math.round(scores.composite)}</span>
-          <span className="pb-1.5 text-xl font-extrabold uppercase tracking-[2px] text-primary-200">/100</span>
-        </div>
-        <h1 className="mt-4 font-display text-4xl font-bold tracking-[-0.504px] text-white">{band.title}</h1>
-        <p className="mt-2 text-base leading-relaxed text-slate-200">{band.meaning}</p>
+        <ReadinessDial score={scores.composite} color={dialColor} />
       </div>
     </div>
   )
 }
 
-function SummaryView({ scores, band, risks, packageRec, onReviewAnswers, onViewDomain }) {
+// Point on a circle at `angleDeg` (0deg = 3 o'clock, increasing = clockwise on screen).
+function polarPoint(cx, cy, r, angleDeg) {
+  const rad = (angleDeg * Math.PI) / 180
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+}
+
+// A real open arc path (not a dasharray trick on a closed circle) — this is
+// what makes strokeLinecap="round" render a cap at BOTH ends of the visible
+// arc. The dasharray approach only caps the "true" dash boundary, which for
+// a partial fill sits outside the cropped/visible half, leaving one end flat.
+function arcPath(cx, cy, r, startAngle, endAngle) {
+  const start = polarPoint(cx, cy, r, startAngle)
+  const end = polarPoint(cx, cy, r, endAngle)
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`
+}
+
+function ReadinessDial({ score, color }) {
+  const size = 220
+  const stroke = 18
+  const r = (size - stroke) / 2
+  const cx = size / 2
+  const cy = size / 2
+  const rounded = Math.max(0, Math.min(100, Math.round(score)))
+  const viewHeight = size / 2 + stroke * 1.5
+
+  const trackPath = arcPath(cx, cy, r, 180, 360)
+  const progressPath = rounded > 0 ? arcPath(cx, cy, r, 180, 180 + (rounded / 100) * 180) : null
+
+  return (
+    <div className="relative mt-5" style={{ width: size, height: viewHeight }}>
+      <svg width={size} height={viewHeight} viewBox={`0 0 ${size} ${viewHeight}`}>
+        <path d={trackPath} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={stroke} strokeLinecap="round" />
+        {progressPath && (
+          <path d={progressPath} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" className="timer-ring" />
+        )}
+      </svg>
+      <div className="absolute inset-x-0 bottom-1.5 flex flex-col items-center">
+        <span className="font-display text-5xl font-bold tracking-[-1.08px] text-white">{rounded}</span>
+        <span className="mt-2 flex items-center gap-1.5 rounded border border-white/20 bg-white/10 px-2.5 py-1">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className="shrink-0">
+            <circle cx="10" cy="10" r="7.5" stroke="white" strokeWidth="1.4" />
+            <circle cx="10" cy="10" r="4" stroke="white" strokeWidth="1.4" />
+            <circle cx="10" cy="10" r="1.3" fill="white" />
+          </svg>
+          <span className="text-xs font-semibold text-white">90%+</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function SummaryView({ scores, band, risks, packageRec, showSimplified, onReviewAnswers, onViewDomain }) {
   const primaryRisk = risks[0]
 
   return (
     <div className="flex flex-col gap-[30px]">
       <ScoreHero scores={scores} band={band} />
 
-      <div className="grid gap-[30px] lg:grid-cols-[1fr_360px]">
+      <div className={`grid gap-[30px] ${showSimplified ? '' : 'lg:grid-cols-[1fr_360px]'}`}>
         <div className="flex h-full flex-col rounded-[10px] border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -123,45 +189,60 @@ function SummaryView({ scores, band, risks, packageRec, onReviewAnswers, onViewD
                 key={domain.domain}
                 domain={domain}
                 strongest={domain.domain === scores.strongest?.domain}
-                weakest={domain.domain === scores.weakest?.domain}
+                weakest={!showSimplified && domain.domain === scores.weakest?.domain}
                 onView={() => onViewDomain(domain.domain)}
               />
             ))}
           </div>
         </div>
 
-        <div className="grid h-full grid-rows-4 gap-6">
-          {COMPONENT_ITEMS.map((item) => (
-            <ComponentCard key={item.key} item={item} value={scores[item.key]} />
-          ))}
-        </div>
+        {!showSimplified && (
+          <div className="grid h-full grid-rows-4 gap-4">
+            {COMPONENT_ITEMS.map((item) => (
+              <ComponentCard key={item.key} item={item} value={scores[item.key]} />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-[30px] lg:grid-cols-3">
-        <InsightCard
-          tone="orange"
-          label="Readiness band"
-          value={band.title}
-          detail={band.meaning}
-          icon="icon-target-02.png"
-        />
-        {primaryRisk && (
+      {showSimplified ? (
+        <div className="rounded-[10px] border border-brand-100 bg-brand-50 p-6 text-center sm:p-8">
+          <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Your starting point</p>
+          <h3 className="mt-2.5 font-display text-2xl font-bold text-sprint-ink">
+            Everyone starts here — this just tells us where to begin.
+          </h3>
+          <p className="mx-auto mt-2.5 max-w-xl text-base leading-relaxed text-slate-600">
+            We&rsquo;re skipping the deep risk analysis for now — it isn&rsquo;t useful yet at this stage. Your best next step
+            is Module 1: a free, guided starting point built for exactly where you are today.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-3">
           <InsightCard
-            tone="white"
-            label="Risk flags"
-            value={primaryRisk.label}
-            detail={primaryRisk.detail}
-            icon="icon-flag-03.png"
+            tone="orange"
+            label="Readiness band"
+            value={band.title}
+            detail={band.meaning}
+            icon="icon-target-02.png"
           />
-        )}
-        <InsightCard
-          tone="yellow"
-          label="Focus domain"
-          value={DOMAIN_LABELS[scores.weakest?.domain]}
-          detail="Start here before spending time on broad review. This is the highest-value sprint target."
-          icon="icon-target-02.png"
-        />
-      </div>
+          {primaryRisk && (
+            <InsightCard
+              tone="white"
+              label="Risk flags"
+              value={primaryRisk.label}
+              detail={primaryRisk.detail}
+              icon="icon-flag-03.png"
+            />
+          )}
+          <InsightCard
+            tone="yellow"
+            label="Domain Gaps"
+            value={`${DOMAIN_LABELS[scores.weakest?.domain]} Domain Gaps`}
+            detail="Start here before spending time on broad review. This is the highest-value sprint target."
+            icon="icon-target-02.png"
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 rounded-[10px] border border-slate-100 bg-white p-4 sm:p-6 lg:flex-row lg:items-start">
         <div className="flex flex-col items-center gap-4 lg:w-[588px] lg:shrink-0">
@@ -232,6 +313,7 @@ function SummaryView({ scores, band, risks, packageRec, onReviewAnswers, onViewD
   )
 }
 
+
 function SummaryDomainRow({ domain, strongest, weakest, onView }) {
   const barColor = weakest ? '#e11d48' : strongest ? '#16a34a' : '#007bff'
 
@@ -242,7 +324,7 @@ function SummaryDomainRow({ domain, strongest, weakest, onView }) {
           <div className="flex items-center gap-2.5">
             <p className="text-2xl font-bold tracking-[-0.288px] text-sprint-ink">{domain.name}</p>
             {strongest && <span className="rounded-full bg-green-50 px-3 py-0.5 text-sm text-green-600">Strongest</span>}
-            {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Weakest</span>}
+            {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Domain Gap</span>}
           </div>
           <p className="mt-2.5 text-base text-slate-500">ECO weight {domain.ecoWeight}%</p>
         </div>
@@ -262,15 +344,18 @@ function SummaryDomainRow({ domain, strongest, weakest, onView }) {
 
 function ComponentCard({ item, value }) {
   return (
-    <div className="flex h-full flex-col justify-between rounded-[10px] border border-slate-200 bg-white px-6 py-[34px]">
+    <div className="flex h-full flex-col justify-between rounded-[10px] border border-slate-200 bg-white px-6 py-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">{item.label}</p>
         <img src={`${ASSET_BASE}/icons/${item.icon}`} alt="" className="h-10 w-10" />
       </div>
       <div>
-        <div className="flex items-end gap-1.5">
-          <p className="font-display text-3xl font-bold tracking-[-0.39px] text-sprint-ink">{Math.round(value)}</p>
-          <p className="pb-0.5 text-sm font-extrabold uppercase tracking-[1.4px] text-slate-400">/100</p>
+        <div className="flex items-end justify-between">
+          <div className="flex items-end gap-1.5">
+            <p className="font-display text-3xl font-bold tracking-[-0.39px] text-sprint-ink">{Math.round(value)}</p>
+            <p className="pb-0.5 text-sm font-extrabold uppercase tracking-[1.4px] text-slate-400">/100</p>
+          </div>
+          <p className="text-base text-slate-500">Weight {item.weight}%</p>
         </div>
         <div className="mt-4 h-2.5 rounded-[5px] bg-slate-200">
           <div className="h-2.5 rounded-[5px]" style={{ width: `${value}%`, backgroundColor: item.color }} />
@@ -290,9 +375,9 @@ function InsightCard({ tone, label, value, detail, icon }) {
   return (
     <div className={`relative overflow-hidden rounded-[10px] border p-6 ${styles.wrap}`}>
       <p className={`text-xs font-extrabold uppercase tracking-[0.1em] ${styles.label}`}>{label}</p>
-      <p className={`mt-2.5 text-2xl font-bold tracking-[-0.288px] ${styles.value}`}>{value}</p>
-      <p className={`mt-2.5 max-w-[80%] text-base leading-relaxed ${styles.detail}`}>{detail}</p>
-      <img src={`${ASSET_BASE}/icons/${icon}`} alt="" className="absolute right-4 top-1/2 h-[46px] w-[46px] -translate-y-1/2" />
+      <p className={`mt-2.5 max-w-[80%] text-xl font-bold tracking-[-0.288px] ${styles.value}`}>{value}</p>
+      <p className={`mt-2.5 text-base leading-relaxed ${styles.detail}`}>{detail}</p>
+      <img src={`${ASSET_BASE}/icons/${icon}`} alt="" className="absolute right-4 top-4 h-[46px] w-[46px]" />
     </div>
   )
 }
@@ -335,7 +420,7 @@ function NavigatorView({
                 <div className="flex items-center gap-2.5">
                   <p className="text-2xl font-bold tracking-[-0.288px] text-sprint-ink">{domain.name}</p>
                   {strongest && <span className="rounded-full bg-green-50 px-3 py-0.5 text-sm text-green-600">Strongest</span>}
-                  {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Weakest</span>}
+                  {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Domain Gap</span>}
                 </div>
                 <p className="mt-2.5 text-base text-slate-500">ECO weight {domain.ecoWeight}%</p>
               </div>
@@ -425,18 +510,26 @@ function DomainRing({ score, color }) {
   )
 }
 
+// Recall answers get partial credit (see scoreRecallText in Assessment.jsx),
+// so a flat correct/incorrect badge would show a 60% match identically to a
+// 0% one. This mirrors the Strong/Partial/Weak tiering used at capture time.
+const RECALL_STATUS_STYLES = {
+  correct: { icon: 'icon-tick-circle-green.png', badge: 'bg-green-50', pill: 'border border-green-100 bg-green-50 text-green-600' },
+  partial: { icon: 'icon-alert.png', badge: 'bg-amber-50', pill: 'border border-amber-100 bg-amber-50 text-amber-600' },
+  incorrect: { icon: 'icon-cancel-circle-red.png', badge: 'bg-rose-50', pill: 'border border-rose-100 bg-rose-50 text-rose-600' },
+}
+
 function ReviewCard({ item, index, defaultOpen }) {
   const isRecall = item.examType === 'recall'
-  const isCorrect = isRecall ? item.score >= 70 : item.isCorrect
-  const statusIcon = isCorrect ? 'icon-tick-circle-green.png' : 'icon-cancel-circle-red.png'
-  const pillClass = isCorrect
-    ? 'border border-green-100 bg-green-50 text-green-600'
-    : 'border border-rose-100 bg-rose-50 text-rose-600'
+  const status = isRecall
+    ? item.score >= 70 ? 'correct' : item.score >= 40 ? 'partial' : 'incorrect'
+    : item.isCorrect ? 'correct' : 'incorrect'
+  const { icon: statusIcon, badge: badgeClass, pill: pillClass } = RECALL_STATUS_STYLES[status]
 
   return (
     <details className="group rounded-2xl border border-slate-200 bg-white p-5 sm:p-[30px]" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-start gap-3">
-        <span className={`grid h-[47px] w-[47px] shrink-0 place-items-center rounded-lg ${isCorrect ? 'bg-green-50' : 'bg-rose-50'}`}>
+        <span className={`grid h-[47px] w-[47px] shrink-0 place-items-center rounded-lg ${badgeClass}`}>
           <img src={`${ASSET_BASE}/icons/${statusIcon}`} alt="" className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">
@@ -463,6 +556,10 @@ function ReviewCard({ item, index, defaultOpen }) {
           <div className="mt-4 grid gap-3 text-sm leading-relaxed text-slate-700">
             <p><span className="font-extrabold text-sprint-ink">Your answer:</span> {String(item.answer ?? 'No answer')}</p>
             <p><span className="font-extrabold text-sprint-ink">Scoring key:</span> {item.modelAnswer}</p>
+            <p>
+              <span className="font-extrabold text-sprint-ink">Recall match:</span> {Math.round(item.score)}%
+              {status === 'partial' && ' — partial credit, still counted proportionally toward your Recall score.'}
+            </p>
           </div>
         ) : (
           <div className="mt-4 grid gap-2">

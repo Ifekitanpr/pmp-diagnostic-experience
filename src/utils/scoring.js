@@ -2,6 +2,15 @@
 // Weights: Performance 65% | Recall 15% | Pacing 10% | Confidence 10%
 // ECO 2026: People 33% | Process 41% | Business Environment 26%
 
+// Group A (Explorer / Beginner) "critical threshold" — 1 July 2026 alignment sync.
+// Below this, the report should skip risk-metric detail entirely and route
+// straight to a primary Module 1 CTA (Phase 2 — not yet wired into Report.jsx).
+// Set to match the existing Foundation Course Sprint band ceiling (0-64) rather
+// than invent a new cutoff: below 65 already means PMI judges the learner to
+// need foundation-only guidance, so a false-confidence/domain-gap breakdown
+// isn't actionable for them yet — it's noise on top of "start Module 1."
+export const GROUP_A_CRITICAL_THRESHOLD = 65
+
 // Pacing timing targets (seconds)
 const TIMING_TARGETS = { easy: 60, moderate: 90, difficult: 120 }
 
@@ -204,8 +213,8 @@ export function getRiskLevel(scores) {
   if (falseConfidenceCount >= 3) risks.push({ level: 'high', label: 'False Confidence Risk', detail: `${falseConfidenceCount} Wrong + High Confidence answers detected. This is the primary risk factor for experienced candidates.` })
   else if (falseConfidenceCount >= 1) risks.push({ level: 'medium', label: 'Mild Overconfidence', detail: `${falseConfidenceCount} Wrong + High Confidence answer(s). Monitor this pattern carefully.` })
 
-  if (weakest && weakest.score < 55) risks.push({ level: 'high', label: `${weakest.name} Domain Gap`, detail: `Score of ${weakest.score}/100 in your weakest domain (${weakest.ecoWeight}% of the real exam). This significantly pulls down your overall readiness.` })
-  else if (weakest && weakest.score < 70) risks.push({ level: 'medium', label: `${weakest.name} Domain Needs Work`, detail: `Score of ${weakest.score}/100. This domain carries ${weakest.ecoWeight}% of the real exam weight.` })
+  if (weakest && weakest.score < 55) risks.push({ level: 'high', label: `${weakest.name} Domain Gaps`, detail: `Score of ${weakest.score}/100 in your weakest domain (${weakest.ecoWeight}% of the real exam). This significantly pulls down your overall readiness.` })
+  else if (weakest && weakest.score < 70) risks.push({ level: 'medium', label: `${weakest.name} Domain Gaps`, detail: `Score of ${weakest.score}/100. This domain carries ${weakest.ecoWeight}% of the real exam weight.` })
 
   if (pacing < 60) risks.push({ level: 'medium', label: 'Pacing Risk', detail: 'You are spending too long on questions relative to PMP exam timing. Aim to answer difficult scenarios in under 2 minutes.' })
 

@@ -71,7 +71,7 @@ export default function App() {
     try {
       const saved = sessionStorage.getItem('pmp_questions')
       const parsed = saved ? JSON.parse(saved) : []
-      return parsed.length === 30 && parsed.every((question) => question.examType) ? parsed : []
+      return parsed.length > 0 && parsed.every((question) => question.examType) ? parsed : []
     } catch {
       return []
     }
@@ -167,7 +167,7 @@ export default function App() {
 
   const handleUserType = (ut) => {
     setUserType(ut)
-    setQuestions(getExamQuestions(ut.category))
+    setQuestions(getExamQuestions(ut))
     goTo(VIEWS.INSTRUCTIONS)
   }
 
@@ -205,7 +205,14 @@ export default function App() {
 
   if (view === VIEWS.ASSESSMENT)
     return questions.length > 0
-      ? <Assessment questions={questions} onComplete={handleAssessmentComplete} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      ? (
+        <Assessment
+          questions={questions}
+          onComplete={handleAssessmentComplete}
+          onLogoClick={() => goTo(VIEWS.LANDING)}
+          onboardingMode={userType?.category === 'A'}
+        />
+      )
       : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
 
   if (view === VIEWS.CALCULATING)
@@ -227,7 +234,19 @@ export default function App() {
   return null
 }
 
-function getExamQuestions(category) {
+// Group A (Explorer / Beginner): 30 easy-to-moderate multiple-choice
+// questions + 15 recall checks, in the same recall-exercise format as
+// Group B — 45 items total. No confidence calibration (see Assessment's
+// onboardingMode); PMI mindset trap analysis is skipped for this category.
+//
+// Group B (Builder, Experienced Practitioner, Validator, Almost Ready,
+// Recovery Learner): 30 harder scenario questions + 15 recall checks (45
+// items) from the current question bank, with confidence calibration after
+// every scenario. NOTE: the bank currently caps both groups at 30 scenario
+// questions (10 per domain) — going meaningfully past 45 for Group B needs
+// more authored Category-B scenario content; see chat for the flag on this.
+function getExamQuestions(userType) {
+  const category = userType.category
   const byDomain = ['people', 'process', 'business']
   const scenarioQuestions = getQuestions(category)
   const exam = []
@@ -235,7 +254,6 @@ function getExamQuestions(category) {
   byDomain.forEach((domain) => {
     const scenarios = scenarioQuestions
       .filter((question) => question.domain === domain)
-      .slice(0, 5)
       .map((question) => ({ ...question, examType: 'scenario' }))
 
     const recall = RECALL_CHECKS
@@ -253,7 +271,7 @@ function getExamQuestions(category) {
     exam.push(...scenarios, ...recall)
   })
 
-  return exam.slice(0, 30)
+  return exam
 }
 
 function CalculatingScreen({ onLogoClick }) {

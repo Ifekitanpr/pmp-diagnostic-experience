@@ -8,7 +8,7 @@ const DOMAIN_BADGE_LABELS = { people: 'People Domain', process: 'Process Domain'
 const DOMAIN_ECO_WEIGHT = { people: 33, process: 41, business: 26 }
 const DOMAIN_RING_COLOR = { people: '#54a7ff', process: '#007bff', business: '#974ffc' }
 
-export default function Assessment({ questions, onComplete, onLogoClick }) {
+export default function Assessment({ questions, onComplete, onLogoClick, onboardingMode = false }) {
   const [qIndex, setQIndex] = useState(0)
   const [responses, setResponses] = useState({})
   const [flagged, setFlagged] = useState({})
@@ -23,7 +23,7 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
   const response = responses[qIndex] || {}
   const target = TIMING_TARGETS[q.difficulty] || 90
   const domains = ['people', 'process', 'business']
-  const answeredCount = Object.values(responses).filter(isCompleteResponse).length
+  const answeredCount = Object.values(responses).filter((r) => isCompleteResponse(r, onboardingMode)).length
   const timerTone = elapsed <= target ? 'green' : elapsed <= target * 1.3 ? 'orange' : 'red'
 
   useEffect(() => {
@@ -92,12 +92,13 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
 
   useEffect(() => {
     if (isTextRecall) return
-    if (response.selected === undefined || response.confidence === undefined) return
+    if (response.selected === undefined) return
+    if (!onboardingMode && response.confidence === undefined) return
     playSound('advance')
     const id = setTimeout(() => handleNext(), 550)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [response.selected, response.confidence, isTextRecall])
+  }, [response.selected, response.confidence, isTextRecall, onboardingMode])
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-sprint-ink">
@@ -137,6 +138,7 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
             questions={questions}
             qIndex={qIndex}
             responses={responses}
+            onboardingMode={onboardingMode}
             className="hidden lg:absolute lg:left-1/2 lg:top-1/2 lg:flex lg:w-[620px] lg:-translate-x-1/2 lg:-translate-y-1/2"
           />
 
@@ -268,17 +270,19 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
               </div>
             </div>
 
-            <aside className={`w-full shrink-0 [perspective:1000px] ${isTextRecall && response.revealed ? 'lg:w-[313px]' : 'lg:w-[241px]'}`}>
-              {isTextRecall && response.revealed ? (
-                <RecallSynthesisPanel question={q} response={response} onAcknowledge={handleNext} />
-              ) : (
-                <ConfidencePanel
-                  active={!isTextRecall && response.selected !== undefined}
-                  value={response.confidence}
-                  onSelect={(confidence) => { playSound('confidence'); setResponse({ confidence }) }}
-                />
-              )}
-            </aside>
+            {!onboardingMode && (
+              <aside className={`w-full shrink-0 [perspective:1000px] ${isTextRecall && response.revealed ? 'lg:w-[313px]' : 'lg:w-[241px]'}`}>
+                {isTextRecall && response.revealed ? (
+                  <RecallSynthesisPanel question={q} response={response} onAcknowledge={handleNext} />
+                ) : (
+                  <ConfidencePanel
+                    active={!isTextRecall && response.selected !== undefined}
+                    value={response.confidence}
+                    onSelect={(confidence) => { playSound('confidence'); setResponse({ confidence }) }}
+                  />
+                )}
+              </aside>
+            )}
           </div>
         </div>
       </main>
@@ -289,6 +293,7 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
           qIndex={qIndex}
           responses={responses}
           flagged={flagged}
+          onboardingMode={onboardingMode}
           onJump={(index) => { setQIndex(index); setShowMap(false) }}
           onClose={() => setShowMap(false)}
         />
@@ -306,11 +311,11 @@ export default function Assessment({ questions, onComplete, onLogoClick }) {
   )
 }
 
-function DotProgress({ questions, qIndex, responses, className = '' }) {
+function DotProgress({ questions, qIndex, responses, onboardingMode = false, className = '' }) {
   return (
     <div className={`mx-auto w-full max-w-[620px] flex-wrap items-center justify-center gap-1 ${className}`}>
       {questions.map((question, index) => {
-        const done = isCompleteResponse(responses[index])
+        const done = isCompleteResponse(responses[index], onboardingMode)
         const ongoing = index === qIndex
         return (
           <span
@@ -408,7 +413,7 @@ function RecallPrompt({ question, response, onChange, playSound }) {
       />
       <button
         onClick={() => {
-          const score = scoreRecallText(response.text || '', question.keywords || [])
+          const score = scoreRecallText(response.text || '', question.keywords || [], question.minRequired)
           playSound?.(score >= 70 ? 'correct' : 'incomplete')
           onChange({ revealed: true, score })
         }}
@@ -423,13 +428,26 @@ function RecallPrompt({ question, response, onChange, playSound }) {
   )
 }
 
+// Recall scoring gives partial credit (see scoreRecallText), so a binary
+// CORRECT/INCOMPLETE label would show a 60% match the same as a 0% one.
+const RECALL_STATUS = {
+  correct: { bg: 'bg-[#2ecc71]', icon: '✓', label: 'CORRECT' },
+  partial: { bg: 'bg-sprint-orange', icon: '~', label: 'PARTIAL' },
+  incorrect: { bg: 'bg-rose-500', icon: '!', label: 'INCOMPLETE' },
+}
+
 function RecallSynthesisPanel({ question, response, onAcknowledge }) {
   const score = response.score ?? (response.selected === question.correct ? 100 : 0)
-  const correct = score >= 70
+  const status = score >= 70 ? 'correct' : score >= 40 ? 'partial' : 'incorrect'
+  const correct = status === 'correct'
+  const { bg, icon, label } = RECALL_STATUS[status]
   const keywords = question.keywords || []
+  const normalizedAnswer = (response.text || '').toLowerCase()
   const missed = question.type === 'recognition'
     ? null
-    : keywords.filter((keyword) => !(response.text || '').toLowerCase().includes(keyword.toLowerCase()))
+    : keywords
+        .filter((entry) => !keywordHit(entry, normalizedAnswer))
+        .map((entry) => (Array.isArray(entry) ? entry.join(' / ') : entry))
 
   return (
     <div className="flip-in origin-top rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
@@ -438,10 +456,10 @@ function RecallSynthesisPanel({ question, response, onAcknowledge }) {
         <button onClick={onAcknowledge} className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-slate-500">✕</button>
       </div>
 
-      <div className={`mt-3 rounded-lg p-1 ${correct ? 'bg-[#2ecc71]' : 'bg-sprint-orange'}`}>
+      <div className={`mt-3 rounded-lg p-1 ${bg}`}>
         <div className="flex flex-col items-center gap-2 py-3">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-white/25 text-base text-white">{correct ? '✓' : '!'}</span>
-          <span className="text-sm font-medium text-white">{correct ? 'CORRECT' : 'INCOMPLETE'}</span>
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-white/25 text-base text-white">{icon}</span>
+          <span className="text-sm font-medium text-white">{label}</span>
         </div>
         <div className="rounded-lg bg-white p-3 text-center">
           <span className="text-sm font-semibold text-slate-700">
@@ -505,7 +523,7 @@ function ConfidencePanel({ active, value, onSelect }) {
   )
 }
 
-function QuestionNavigatorOverlay({ questions, qIndex, responses, flagged, onJump, onClose }) {
+function QuestionNavigatorOverlay({ questions, qIndex, responses, flagged, onboardingMode = false, onJump, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 p-6 pt-16 backdrop-blur-[6px] sm:pt-24">
       <div className="flex w-full max-w-[700px] flex-col gap-[30px] rounded-[10px] bg-white p-6 sm:px-10 sm:py-[30px]">
@@ -529,7 +547,7 @@ function QuestionNavigatorOverlay({ questions, qIndex, responses, flagged, onJum
 
         <div className="grid grid-cols-5 gap-2.5 sm:grid-cols-10">
           {questions.map((item, index) => {
-            const complete = isCompleteResponse(responses[index])
+            const complete = isCompleteResponse(responses[index], onboardingMode)
             const current = index === qIndex
             const isFlagged = Boolean(flagged[index])
             const cellClass = isFlagged
@@ -613,11 +631,11 @@ function EndAssessmentModal({ answeredCount, totalCount, onCancel, onConfirm }) 
   )
 }
 
-function isCompleteResponse(response) {
+function isCompleteResponse(response, skipConfidence = false) {
   if (!response) return false
   if (response.text !== undefined) return Boolean(response.revealed)
   if (response.selected !== undefined && response.revealed) return true
-  if (response.selected !== undefined) return response.confidence !== undefined
+  if (response.selected !== undefined) return skipConfidence || response.confidence !== undefined
   return false
 }
 
@@ -627,7 +645,7 @@ function compileAnswer(question, response = {}, flagged = false, order = 0) {
   if (question.examType === 'recall') {
     const score = question.type === 'recognition'
       ? response.selected === question.correct ? 100 : 0
-      : response.score ?? scoreRecallText(response.text || '', question.keywords || [])
+      : response.score ?? scoreRecallText(response.text || '', question.keywords || [], question.minRequired)
 
     return {
       questionId: question.id,
@@ -666,9 +684,22 @@ function compileAnswer(question, response = {}, flagged = false, order = 0) {
   }
 }
 
-function scoreRecallText(text, keywords) {
+// A `keywords` entry can be a single required word, or an array of synonyms
+// where matching ANY one of them satisfies that one concept (e.g. "obstacles"
+// / "impediments" / "blockers" all count as the same correct answer, rather
+// than being scored as three separate required words).
+function keywordHit(entry, normalizedText) {
+  const synonyms = Array.isArray(entry) ? entry : [entry]
+  return synonyms.some((word) => normalizedText.includes(word.toLowerCase()))
+}
+
+// `minRequired` supports "name any N of these" questions (e.g. "name three
+// factors") — without it, a fully correct answer naming exactly what was
+// asked for would be unfairly scored against the full, longer keyword list.
+function scoreRecallText(text, keywords, minRequired) {
   if (!keywords.length) return text.trim().length >= 10 ? 60 : 20
   const normalized = text.toLowerCase()
-  const hits = keywords.filter((keyword) => normalized.includes(keyword.toLowerCase())).length
-  return Math.round((hits / keywords.length) * 100)
+  const hits = keywords.filter((entry) => keywordHit(entry, normalized)).length
+  const required = minRequired ? Math.min(minRequired, keywords.length) : keywords.length
+  return Math.round((Math.min(hits, required) / required) * 100)
 }
