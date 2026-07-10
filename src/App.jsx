@@ -4,6 +4,11 @@ import UserTypeSelection from './components/UserTypeSelection'
 import Instructions     from './components/Instructions'
 import Assessment       from './components/Assessment'
 import Report           from './components/Report'
+import SprintPlanPage   from './components/SprintPlanPage'
+import PricingPage      from './components/PricingPage'
+import UnlockReportPage from './components/UnlockReportPage'
+import VerifyEmailPage  from './components/VerifyEmailPage'
+import DetailedReadinessReportPage from './components/DetailedReadinessReportPage'
 import { CertSprintsLogo, SiteFooter, SiteHeader } from './components/SiteChrome'
 import { getQuestions } from './data/questions'
 import { RECALL_CHECKS } from './data/recallChecks'
@@ -15,6 +20,11 @@ const VIEWS = {
   ASSESSMENT:  'assessment',
   CALCULATING: 'calculating',
   REPORT:      'report',
+  SPRINT_PLAN: 'sprintPlan',
+  PRICING:     'pricing',
+  UNLOCK_REPORT: 'unlockReport',
+  VERIFY_EMAIL: 'verifyEmail',
+  DETAILED_REPORT: 'detailedReport',
 }
 
 const HASH_MAP = {
@@ -28,6 +38,11 @@ const HASH_MAP = {
   '#diagnose':    VIEWS.ASSESSMENT,
   '#calculating': VIEWS.CALCULATING,
   '#report':      VIEWS.REPORT,
+  '#sprint-plan': VIEWS.SPRINT_PLAN,
+  '#domain-pricing': VIEWS.PRICING,
+  '#unlock-report': VIEWS.UNLOCK_REPORT,
+  '#verify-email': VIEWS.VERIFY_EMAIL,
+  '#detailed-readiness-report': VIEWS.DETAILED_REPORT,
 }
 
 const VIEW_TO_HASH = {
@@ -37,6 +52,11 @@ const VIEW_TO_HASH = {
   [VIEWS.ASSESSMENT]:   '#diagnose',
   [VIEWS.CALCULATING]:  '#calculating',
   [VIEWS.REPORT]:       '#report',
+  [VIEWS.SPRINT_PLAN]:  '#sprint-plan',
+  [VIEWS.PRICING]:      '#domain-pricing',
+  [VIEWS.UNLOCK_REPORT]:'#unlock-report',
+  [VIEWS.VERIFY_EMAIL]: '#verify-email',
+  [VIEWS.DETAILED_REPORT]: '#detailed-readiness-report',
 }
 
 const ANCHOR_HASHES = [
@@ -200,7 +220,7 @@ export default function App() {
 
   if (view === VIEWS.INSTRUCTIONS)
     return userType
-      ? <Instructions userType={userType} onBegin={handleBegin} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      ? <Instructions userType={userType} questions={questions} onBegin={handleBegin} onLogoClick={() => goTo(VIEWS.LANDING)} />
       : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
 
   if (view === VIEWS.ASSESSMENT)
@@ -227,9 +247,40 @@ export default function App() {
           userType={userType}
           onRetake={handleRetake}
           onLogoClick={() => goTo(VIEWS.LANDING)}
+          onSeeSprintPlan={() => goTo(VIEWS.SPRINT_PLAN)}
+          onGetDetailedReport={() => goTo(VIEWS.UNLOCK_REPORT)}
         />
       )
       : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+
+  if (view === VIEWS.SPRINT_PLAN)
+    return userType && mcqAnswers.length > 0
+      ? <SprintPlanPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.REPORT)} onPricing={() => goTo(VIEWS.PRICING)} onDetailedReport={() => goTo(VIEWS.UNLOCK_REPORT)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+
+  if (view === VIEWS.PRICING)
+    return userType && mcqAnswers.length > 0
+      ? <PricingPage answers={mcqAnswers} recallAnswers={recallAnswers} onBack={() => goTo(VIEWS.SPRINT_PLAN)} onDetailedReport={() => goTo(VIEWS.UNLOCK_REPORT)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+
+  if (view === VIEWS.UNLOCK_REPORT)
+    return userType && mcqAnswers.length > 0
+      ? <UnlockReportPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.REPORT)} onVerify={() => goTo(VIEWS.VERIFY_EMAIL)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      : <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+
+  if (view === VIEWS.VERIFY_EMAIL) {
+    if (!userType || !mcqAnswers.length) return <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+    return sessionStorage.getItem('pmp_report_profile')
+      ? <VerifyEmailPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.UNLOCK_REPORT)} onVerified={() => goTo(VIEWS.DETAILED_REPORT)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      : <UnlockReportPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.REPORT)} onVerify={() => goTo(VIEWS.VERIFY_EMAIL)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+  }
+
+  if (view === VIEWS.DETAILED_REPORT) {
+    if (!userType || !mcqAnswers.length) return <Landing onStart={handleStart} onLogoClick={() => goTo(VIEWS.LANDING)} />
+    return sessionStorage.getItem('pmp_report_profile')
+      ? <DetailedReadinessReportPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.REPORT)} onReviewAnswers={() => goTo(VIEWS.REPORT)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+      : <UnlockReportPage answers={mcqAnswers} recallAnswers={recallAnswers} userType={userType} onBack={() => goTo(VIEWS.REPORT)} onVerify={() => goTo(VIEWS.VERIFY_EMAIL)} onRetake={handleRetake} onLogoClick={() => goTo(VIEWS.LANDING)} />
+  }
 
   return null
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { computeScores, getBand, getRiskLevel, GROUP_A_CRITICAL_THRESHOLD } from '../utils/scoring'
+import { getWeakDomains } from '../utils/report'
+import { DomainIcon, DOMAIN_SPRINT_FEATURES, FeatureIcon } from './report/reportShared'
 import { PromoBar, SiteFooter, SiteHeader } from './SiteChrome'
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}certsprints-assets`
@@ -26,7 +28,7 @@ const BAND_DIAL_COLORS = {
   green: '#22c55e',
 }
 
-export default function Report({ answers, recallAnswers, userType, onRetake, onLogoClick }) {
+export default function Report({ answers, recallAnswers, userType, onRetake, onLogoClick, onSeeSprintPlan, onGetDetailedReport }) {
   const [view, setView] = useState('summary')
   const [filterAccuracy, setFilterAccuracy] = useState('all')
   const [filterDomain, setFilterDomain] = useState('all')
@@ -35,6 +37,7 @@ export default function Report({ answers, recallAnswers, userType, onRetake, onL
   const band = getBand(scores.composite, userType.category)
   const risks = getRiskLevel(scores)
   const packageRec = getPackageRecommendation(userType, scores, band)
+  const weakDomains = getWeakDomains(scores)
   const reviewItems = [...answers, ...recallAnswers].sort((a, b) => (a.order || 0) - (b.order || 0))
 
   // Group A alignment sync (1 July 2026): below the critical threshold, skip
@@ -52,40 +55,56 @@ export default function Report({ answers, recallAnswers, userType, onRetake, onL
     return true
   })
 
+  const goToSummary = () => setView('summary')
+  const goToSprintPlan = onSeeSprintPlan
+  const goToDetailedReport = onGetDetailedReport
+
+  let content
+
+  if (view === 'summary') {
+    content = (
+      <SummaryView
+        scores={scores}
+        band={band}
+        risks={risks}
+        packageRec={packageRec}
+        userType={userType}
+        weakDomains={weakDomains}
+        showSimplified={showSimplified}
+        onSeeSprintPlan={goToSprintPlan}
+        onGetDetailedReport={goToDetailedReport}
+        onViewDomain={(domainKey) => {
+          setFilterAccuracy('all')
+          setFilterDomain(domainKey)
+          setView('navigator')
+        }}
+      />
+    )
+  } else if (view === 'navigator') {
+    content = (
+      <NavigatorView
+        scores={scores}
+        band={band}
+        weakDomains={weakDomains}
+        visibleItems={visibleItems}
+        missedCount={missedCount}
+        correctCount={correctCount}
+        filterAccuracy={filterAccuracy}
+        setFilterAccuracy={setFilterAccuracy}
+        filterDomain={filterDomain}
+        setFilterDomain={setFilterDomain}
+        onBack={goToSummary}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-sprint-ink">
       <PromoBar />
       <SiteHeader onLogoClick={onLogoClick} />
 
       <main className="section-shell py-8">
-        {view === 'summary' ? (
-          <SummaryView
-            scores={scores}
-            band={band}
-            risks={risks}
-            packageRec={packageRec}
-            showSimplified={showSimplified}
-            onReviewAnswers={() => setView('navigator')}
-            onViewDomain={(domainKey) => {
-              setFilterAccuracy('all')
-              setFilterDomain(domainKey)
-              setView('navigator')
-            }}
-          />
-        ) : (
-          <NavigatorView
-            scores={scores}
-            band={band}
-            visibleItems={visibleItems}
-            missedCount={missedCount}
-            correctCount={correctCount}
-            filterAccuracy={filterAccuracy}
-            setFilterAccuracy={setFilterAccuracy}
-            filterDomain={filterDomain}
-            setFilterDomain={setFilterDomain}
-            onBack={() => setView('summary')}
-          />
-        )}
+        {content}
       </main>
 
       <SiteFooter onStart={onRetake} onLogoClick={onLogoClick} />
@@ -161,8 +180,20 @@ function ReadinessDial({ score, color }) {
   )
 }
 
-function SummaryView({ scores, band, risks, packageRec, showSimplified, onReviewAnswers, onViewDomain }) {
+function SummaryView({
+  scores,
+  band,
+  risks,
+  packageRec,
+  userType,
+  weakDomains,
+  showSimplified,
+  onSeeSprintPlan,
+  onGetDetailedReport,
+  onViewDomain,
+}) {
   const primaryRisk = risks[0]
+  const isGroupB = userType.category === 'B'
 
   return (
     <div className="flex flex-col gap-[30px]">
@@ -188,8 +219,8 @@ function SummaryView({ scores, band, risks, packageRec, showSimplified, onReview
               <SummaryDomainRow
                 key={domain.domain}
                 domain={domain}
-                strongest={domain.domain === scores.strongest?.domain}
-                weakest={!showSimplified && domain.domain === scores.weakest?.domain}
+                strongest={domain.domain === scores.strongest?.domain && !weakDomains.some((weakDomain) => weakDomain.domain === domain.domain)}
+                weakest={!showSimplified && weakDomains.some((weakDomain) => weakDomain.domain === domain.domain)}
                 onView={() => onViewDomain(domain.domain)}
               />
             ))}
@@ -236,79 +267,28 @@ function SummaryView({ scores, band, risks, packageRec, showSimplified, onReview
           )}
           <InsightCard
             tone="yellow"
-            label="Domain Gaps"
-            value={`${DOMAIN_LABELS[scores.weakest?.domain]} Domain Gaps`}
-            detail="Start here before spending time on broad review. This is the highest-value sprint target."
+            label={isGroupB ? 'Weak domains' : 'Domain gaps'}
+            value={formatDomainList(weakDomains)}
+            detail={isGroupB
+              ? 'These are the domains CertSprints recommends repairing first with focused domain sprints.'
+              : 'Start here before spending time on broad review. This is the highest-value sprint target.'}
             icon="icon-target-02.png"
           />
         </div>
       )}
 
-      <div className="flex flex-col gap-6 rounded-[10px] border border-slate-100 bg-white p-4 sm:p-6 lg:flex-row lg:items-start">
-        <div className="flex flex-col items-center gap-4 lg:w-[588px] lg:shrink-0">
-          <div className="flex w-full flex-col gap-4">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-500">Recommended next step</p>
-              <h2 className="mt-2.5 font-display text-2xl font-bold tracking-[-0.39px] text-sprint-ink sm:text-3xl">
-                {packageRec.title}
-              </h2>
-            </div>
-            <p className="text-base leading-relaxed text-sprint-ink">{packageRec.detail}</p>
-          </div>
-          <img src={`${ASSET_BASE}/illustrations/next-step-course.png`} alt="" className="w-full max-w-[534px]" />
-        </div>
-
-        <div className="flex flex-1 flex-col gap-5">
-          <div className="flex flex-col justify-center gap-6 rounded-[10px] border border-slate-100 bg-slate-50 p-4 sm:p-6 lg:min-h-[220px]">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Primary action</p>
-              <h3 className="mt-2.5 font-display text-2xl font-bold tracking-[-0.288px] text-sprint-ink">Start Free Module 1</h3>
-              <p className="mt-2.5 text-base leading-relaxed text-sprint-ink">Begin your structured learning path with our free first module</p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button className="flex min-h-[54px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded bg-brand-500 px-3 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 sm:gap-2.5 sm:px-5 sm:text-base">
-                Start Free for Free
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
-                  <path d="M5 10h10M11 6l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <button
-                onClick={onReviewAnswers}
-                className="flex min-h-[54px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded border border-brand-500 bg-white px-3 py-3 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 sm:gap-2.5 sm:px-5 sm:text-base"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
-                  <path d="M2 10s2.8-5 8-5 8 5 8 5-2.8 5-8 5-8-5-8-5Z" stroke="#007bff" strokeWidth="1.6" strokeLinejoin="round" />
-                  <circle cx="10" cy="10" r="2.2" stroke="#007bff" strokeWidth="1.6" />
-                </svg>
-                Review my answers
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-6 rounded-[10px] border border-slate-100 bg-slate-50 p-4 sm:p-6">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Unlock full report</p>
-              <h3 className="mt-2.5 font-display text-2xl font-bold tracking-[-0.288px] text-sprint-ink">Unlock your full PMP Readiness Report</h3>
-              <p className="mt-2.5 text-base leading-relaxed text-sprint-ink">
-                Create a free CertSprints profile to save your result, get your detailed score breakdown, and receive your recommended sprint path
-              </p>
-            </div>
-            <button className="flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded bg-brand-500 px-3 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 sm:text-base">
-              Create free profile
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
-                <path d="M5 10h10M11 6l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <div className="flex items-center justify-center gap-2.5 text-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-                <rect x="5" y="11" width="14" height="9" rx="2" stroke="#16a34a" strokeWidth="1.6" />
-                <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#16a34a" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-              <p className="text-sm text-slate-500 sm:text-base">No card required. Free Module 1 access included</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {isGroupB ? (
+        <GroupBDomainSprintOffer
+          weakDomains={weakDomains}
+          onSeeSprintPlan={onSeeSprintPlan}
+          onGetDetailedReport={onGetDetailedReport}
+        />
+      ) : (
+        <GroupAFoundationOffer
+          packageRec={packageRec}
+          onGetDetailedReport={onGetDetailedReport}
+        />
+      )}
     </div>
   )
 }
@@ -324,7 +304,7 @@ function SummaryDomainRow({ domain, strongest, weakest, onView }) {
           <div className="flex items-center gap-2.5">
             <p className="text-2xl font-bold tracking-[-0.288px] text-sprint-ink">{domain.name}</p>
             {strongest && <span className="rounded-full bg-green-50 px-3 py-0.5 text-sm text-green-600">Strongest</span>}
-            {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Domain Gap</span>}
+            {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Priority Gap</span>}
           </div>
           <p className="mt-2.5 text-base text-slate-500">ECO weight {domain.ecoWeight}%</p>
         </div>
@@ -365,6 +345,147 @@ function ComponentCard({ item, value }) {
   )
 }
 
+function GroupAFoundationOffer({ packageRec, onGetDetailedReport }) {
+  return (
+    <div className="rounded-[10px] border border-slate-100 bg-white p-4 sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Recommended next step</p>
+          <h2 className="mt-2.5 font-display text-2xl font-bold tracking-[-0.39px] text-sprint-ink sm:text-3xl">
+            {packageRec.title}
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-slate-600">{packageRec.detail}</p>
+        </div>
+        <div className="rounded-[10px] border border-brand-100 bg-brand-50 p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Your next move</p>
+          <p className="mt-2 text-base leading-relaxed text-slate-700">
+            Start with the free foundation module, save your result, and unlock your detailed report and reviewed answers when you are ready.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <button className="flex min-h-[54px] items-center justify-center gap-2 whitespace-nowrap rounded bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 sm:text-base">
+          Start for free
+          <ArrowRightIcon stroke="white" />
+        </button>
+        <button
+          onClick={onGetDetailedReport}
+          className="flex min-h-[54px] items-center justify-center gap-2 whitespace-nowrap rounded border border-brand-500 bg-white px-5 py-3 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 sm:text-base"
+        >
+          <FileIcon />
+          Get detailed report
+        </button>
+        <DetailedReportButton onClick={onGetDetailedReport} />
+      </div>
+    </div>
+  )
+}
+
+function GroupBDomainSprintOffer({ weakDomains, onSeeSprintPlan, onGetDetailedReport }) {
+  const domainNames = formatDomainList(weakDomains)
+
+  return (
+    <div className="rounded-[10px] border border-slate-100 bg-white p-5 sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[650px_1fr]">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-brand-500">Recommended next step</p>
+          <h2 className="mt-2.5 font-display text-[30px] font-bold leading-[38px] tracking-[-0.39px] text-sprint-ink">
+            Focus on your priority domains first
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-sprint-ink">
+            Your diagnostic shows that {domainNames} {weakDomains.length > 1 ? 'are' : 'is'} most likely holding your PMP readiness back.
+          </p>
+
+          <div className="mt-5 grid gap-4">
+            {weakDomains.map((domain) => (
+              <div key={domain.domain} className="flex items-center gap-4 rounded-[10px] border border-slate-200 bg-white p-4 sm:p-6">
+                <div className="grid size-[50px] shrink-0 place-items-center rounded-[10px] bg-rose-50 text-rose-600 sm:size-[60px]">
+                  <DomainIcon domain={domain.domain} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <p className="text-xl font-semibold leading-7 tracking-[-0.2px] text-black">{domain.name}</p>
+                    <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Priority Domain</span>
+                  </div>
+                  <div className="mt-1 flex items-end gap-1.5">
+                    <p className="font-display text-[30px] font-bold leading-[38px] text-sprint-ink">{domain.score}</p>
+                    <p className="pb-1 text-sm font-extrabold uppercase tracking-[0.1em] text-slate-400">/100</p>
+                  </div>
+                  <div className="mt-2 h-[14px] overflow-hidden rounded-[5px] bg-rose-100">
+                    <div className="h-full rounded-[5px] bg-rose-600" style={{ width: `${domain.score}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex items-center gap-2.5 border border-brand-50 bg-brand-50/50 p-2.5 text-base text-slate-500">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full border border-brand-500 text-xs font-semibold text-brand-500">i</span>
+            Start here before full mock practice.
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <a href="#sprint-plan" onClick={onSeeSprintPlan} className="flex min-h-[54px] items-center justify-center gap-2 rounded bg-brand-500 px-5 py-3 text-base font-semibold text-white transition hover:bg-brand-600">
+              See my sprint plan <ArrowRightIcon stroke="white" />
+            </a>
+            <DetailedReportButton onClick={onGetDetailedReport} />
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center rounded-[10px] border border-slate-100 bg-slate-50/50 p-5 sm:p-6">
+          <h3 className="text-2xl font-bold leading-8 tracking-[-0.288px] text-sprint-ink">What your recommended sprint includes</h3>
+          <p className="mt-1 text-base text-sprint-ink">Each recommended domain sprint includes</p>
+          <div className="mt-6 grid gap-4">
+            {DOMAIN_SPRINT_FEATURES.map((feature) => (
+              <div key={feature.title} className="flex items-center gap-4">
+                <div className="grid size-[50px] shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-500"><FeatureIcon type={feature.icon} /></div>
+                <div>
+                  <p className="text-lg font-semibold leading-6 text-black">{feature.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-700">{feature.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 flex items-center gap-2.5 border border-brand-50 bg-brand-50/50 p-2.5 text-base text-brand-700">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full border border-brand-500 text-xs font-semibold text-brand-500">i</span>
+            Pricing and sprint selection are shown on next page
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetailedReportButton({ onClick, compact = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex min-h-[54px] items-center justify-center gap-2 whitespace-nowrap rounded border border-brand-500 bg-white px-3 py-3 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 sm:gap-2.5 sm:px-5 sm:text-base ${compact ? 'sm:col-span-2' : 'flex-1'}`}
+    >
+      <FileIcon />
+      Unlock detailed report
+    </button>
+  )
+}
+
+function FileIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0" aria-hidden="true">
+      <path d="M5 3.5h6.2L15 7.3v9.2H5v-13Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M11 3.8V8h4M7.8 11h4.4M7.8 14h4.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ArrowRightIcon({ stroke }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
+      <path d="M5 10h10M11 6l4 4-4 4" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function InsightCard({ tone, label, value, detail, icon }) {
   const styles = {
     orange: { wrap: 'border-accent-200 bg-accent-50', label: 'text-slate-500', value: 'text-accent-700', detail: 'text-slate-700' },
@@ -385,6 +506,7 @@ function InsightCard({ tone, label, value, detail, icon }) {
 function NavigatorView({
   scores,
   band,
+  weakDomains,
   visibleItems,
   missedCount,
   correctCount,
@@ -410,8 +532,8 @@ function NavigatorView({
 
       <div className="grid gap-5 sm:grid-cols-3">
         {scores.domains.map((domain) => {
-          const strongest = domain.domain === scores.strongest?.domain
-          const weakest = domain.domain === scores.weakest?.domain
+          const weakest = weakDomains.some((weakDomain) => weakDomain.domain === domain.domain)
+          const strongest = domain.domain === scores.strongest?.domain && !weakest
           const ringColor = weakest ? '#e11d48' : strongest ? '#16a34a' : '#007bff'
           return (
             <div key={domain.domain} className="flex items-center gap-5 rounded-[10px] border border-slate-200 bg-white p-4">
@@ -420,7 +542,7 @@ function NavigatorView({
                 <div className="flex items-center gap-2.5">
                   <p className="text-2xl font-bold tracking-[-0.288px] text-sprint-ink">{domain.name}</p>
                   {strongest && <span className="rounded-full bg-green-50 px-3 py-0.5 text-sm text-green-600">Strongest</span>}
-                  {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Domain Gap</span>}
+                  {weakest && <span className="rounded-full bg-rose-50 px-3 py-0.5 text-sm text-rose-600">Priority Gap</span>}
                 </div>
                 <p className="mt-2.5 text-base text-slate-500">ECO weight {domain.ecoWeight}%</p>
               </div>
@@ -600,6 +722,14 @@ function ReviewCard({ item, index, defaultOpen }) {
       </div>
     </details>
   )
+}
+
+function formatDomainList(domains) {
+  const names = domains.map((domain) => DOMAIN_LABELS[domain.domain] || domain.name)
+
+  if (names.length <= 1) return names[0] || 'Priority Domain'
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
 }
 
 function getPackageRecommendation(userType, scores, band) {
